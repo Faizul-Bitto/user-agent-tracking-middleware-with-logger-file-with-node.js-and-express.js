@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>User Agent Tracking</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+      }
+
+      .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
+
+      .header h1 {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+      }
+
+      .header p {
+        opacity: 0.9;
+      }
+
+      .controls {
+        padding: 20px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .refresh-btn {
+        background: #667eea;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: background 0.3s;
+      }
+
+      .refresh-btn:hover {
+        background: #5568d3;
+      }
+
+      .stats {
+        display: flex;
+        gap: 20px;
+        padding: 20px;
+        background: #f8f9fa;
+      }
+
+      .stat-card {
+        flex: 1;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+
+      .stat-card h3 {
+        color: #667eea;
+        margin-bottom: 10px;
+      }
+
+      .stat-card .number {
+        font-size: 2em;
+        font-weight: bold;
+        color: #333;
+      }
+
+      .table-container {
+        padding: 20px;
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+      }
+
+      thead {
+        background: #667eea;
+        color: white;
+      }
+
+      th,
+      td {
+        padding: 15px;
+        text-align: left;
+        border-bottom: 1px solid #dee2e6;
+      }
+
+      th {
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.9em;
+        letter-spacing: 0.5px;
+      }
+
+      tbody tr:hover {
+        background: #f8f9fa;
+      }
+
+      .count {
+        font-weight: bold;
+        color: #28a745;
+      }
+
+      .blocked-count {
+        font-weight: bold;
+        color: #dc3545;
+      }
+
+      .loading {
+        text-align: center;
+        padding: 40px;
+        color: #667eea;
+        font-size: 1.2em;
+      }
+
+      .error {
+        text-align: center;
+        padding: 40px;
+        color: #dc3545;
+        font-size: 1.2em;
+      }
+
+      .charts-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        padding: 20px;
+        background: #f8f9fa;
+      }
+
+      .chart-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+
+      .chart-card h3 {
+        color: #667eea;
+        margin-bottom: 15px;
+        text-align: center;
+      }
+
+      .chart-wrapper {
+        position: relative;
+        height: 300px;
+      }
+
+      @media (max-width: 768px) {
+        .charts-container {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🔍 User Agent Tracking</h1>
+        <p>Monitor and analyze user agent requests</p>
+      </div>
+
+      <div class="controls">
+        <div>
+          <button class="refresh-btn" onclick="loadData()">🔄 Refresh</button>
+        </div>
+        <div id="lastUpdate"></div>
+      </div>
+
+      <div class="stats" id="stats">
+        <div class="stat-card">
+          <h3>Total User Agents</h3>
+          <div class="number" id="totalAgents">0</div>
+        </div>
+        <div class="stat-card">
+          <h3>Total Requests</h3>
+          <div class="number" id="totalRequests">0</div>
+        </div>
+        <div class="stat-card">
+          <h3>Total Blocked</h3>
+          <div class="number" id="totalBlocked">0</div>
+        </div>
+      </div>
+
+      <div class="charts-container" id="chartsContainer" style="display: none">
+        <div class="chart-card">
+          <h3>📊 Blocked vs Not Blocked</h3>
+          <div class="chart-wrapper">
+            <canvas id="pieChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h3>📈 Blocked Agents</h3>
+          <div class="chart-wrapper">
+            <canvas id="barChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <div id="loading" class="loading">Loading data...</div>
+        <div id="error" class="error" style="display: none"></div>
+        <table id="trackingTable" style="display: none">
+          <thead>
+            <tr>
+              <th>User Agent Name</th>
+              <th>Blocked</th>
+              <th>Count</th>
+              <th>Blocked Count</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      let pieChartInstance = null;
+      let barChartInstance = null;
+
+      async function loadData() {
+        const loading = document.getElementById("loading");
+        const error = document.getElementById("error");
+        const table = document.getElementById("trackingTable");
+        const tableBody = document.getElementById("tableBody");
+        const chartsContainer = document.getElementById("chartsContainer");
+
+        loading.style.display = "block";
+        error.style.display = "none";
+        table.style.display = "none";
+        chartsContainer.style.display = "none";
+        tableBody.innerHTML = "";
+
+        try {
+          const response = await fetch("/api/user-agent-tracking");
+          if (!response.ok) throw new Error("Failed to fetch data");
+
+          const data = await response.json();
+
+          // Update stats
+          const totalAgents = data.length;
+          const totalRequests = data.reduce((sum, item) => sum + item.count, 0);
+          const totalBlocked = data.reduce(
+            (sum, item) => sum + item.blockedCount,
+            0
+          );
+
+          document.getElementById("totalAgents").textContent = totalAgents;
+          document.getElementById("totalRequests").textContent = totalRequests;
+          document.getElementById("totalBlocked").textContent = totalBlocked;
+
+          // Populate table
+          if (data.length === 0) {
+            tableBody.innerHTML =
+              '<tr><td colspan="4" style="text-align: center; padding: 40px;">No data available</td></tr>';
+          } else {
+            data.forEach((item) => {
+              const row = document.createElement("tr");
+              const blockedClass =
+                item.blocked === "Yes" ? "blocked-count" : "count";
+              row.innerHTML = `
+                            <td>${item.userAgent}</td>
+                            <td class="${blockedClass}">${item.blocked}</td>
+                            <td class="count">${item.count}</td>
+                            <td class="blocked-count">${item.blockedCount}</td>
+                        `;
+              tableBody.appendChild(row);
+            });
+          }
+
+          // Update charts
+          updateCharts(data);
+
+          loading.style.display = "none";
+          table.style.display = "table";
+          chartsContainer.style.display = "grid";
+
+          // Update last refresh time
+          const now = new Date();
+          document.getElementById(
+            "lastUpdate"
+          ).textContent = `Last updated: ${now.toLocaleTimeString()}`;
+        } catch (err) {
+          loading.style.display = "none";
+          error.style.display = "block";
+          error.textContent = "Error loading data: " + err.message;
+        }
+      }
+
+      function updateCharts(data) {
+        // Calculate blocked vs not blocked
+        const blockedCount = data.filter((item) => item.blocked === "Yes").length;
+        const notBlockedCount = data.length - blockedCount;
+
+        // Get all blocked user agents (sorted by blockedCount)
+        const blockedAgents = data
+          .filter((item) => item.blockedCount > 0)
+          .sort((a, b) => b.blockedCount - a.blockedCount);
+
+        // Update Pie Chart
+        const pieCtx = document.getElementById("pieChart").getContext("2d");
+        if (pieChartInstance) {
+          pieChartInstance.destroy();
+        }
+        pieChartInstance = new Chart(pieCtx, {
+          type: "pie",
+          data: {
+            labels: ["Blocked", "Not Blocked"],
+            datasets: [
+              {
+                label: "User Agents",
+                data: [blockedCount, notBlockedCount],
+                backgroundColor: ["#dc3545", "#28a745"],
+                borderColor: ["#c82333", "#218838"],
+                borderWidth: 2,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: "bottom",
+              },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    const label = context.label || "";
+                    const value = context.parsed || 0;
+                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                    const percentage = ((value / total) * 100).toFixed(1);
+                    return `${label}: ${value} (${percentage}%)`;
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        // Update Bar Chart
+        const barCtx = document.getElementById("barChart").getContext("2d");
+        if (barChartInstance) {
+          barChartInstance.destroy();
+        }
+
+        if (blockedAgents.length > 0) {
+          barChartInstance = new Chart(barCtx, {
+            type: "bar",
+            data: {
+              labels: blockedAgents.map((item) => {
+                // Truncate long user agent strings
+                const maxLength = 30;
+                return item.userAgent.length > maxLength
+                  ? item.userAgent.substring(0, maxLength) + "..."
+                  : item.userAgent;
+              }),
+              datasets: [
+                {
+                  label: "Blocked Count",
+                  data: blockedAgents.map((item) => item.blockedCount),
+                  backgroundColor: "#dc3545",
+                  borderColor: "#c82333",
+                  borderWidth: 1,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  ticks: {
+                    stepSize: 1,
+                  },
+                },
+                x: {
+                  ticks: {
+                    maxRotation: 45,
+                    minRotation: 45,
+                  },
+                },
+              },
+              plugins: {
+                legend: {
+                  display: false,
+                },
+                tooltip: {
+                  callbacks: {
+                    title: function (context) {
+                      const index = context[0].dataIndex;
+                      return blockedAgents[index].userAgent;
+                    },
+                  },
+                },
+              },
+            },
+          });
+        } else {
+          // Show empty chart message
+          barChartInstance = new Chart(barCtx, {
+            type: "bar",
+            data: {
+              labels: ["No blocked agents"],
+              datasets: [
+                {
+                  label: "Blocked Count",
+                  data: [0],
+                  backgroundColor: "#f8f9fa",
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  display: false,
+                },
+              },
+            },
+          });
+        }
+      }
+
+      // Load data on page load
+      loadData();
+    </script>
+  </body>
+</html>

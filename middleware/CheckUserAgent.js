@@ -1,7 +1,8 @@
-const { saveUserAgent } = require( "../utils/logger" );
+const { saveUserAgentWithCount, saveBlockedUserAgentWithCount } = require( "../utils/logger" );
 
 exports.checkUserAgent = ( req, res, next ) => {
     const userAgent = req.headers[ 'user-agent' ];
+
     const blockedPatterns = [
         /curl/i,
         /wget/i,
@@ -19,14 +20,17 @@ exports.checkUserAgent = ( req, res, next ) => {
 
     console.log( `The agent is ${ userAgent }` );
 
-    // Save to JSON file
-    saveUserAgent( userAgent );
+    // Save non-blocked user agent to userAgent.json
+    saveUserAgentWithCount( userAgent );
 
     if ( !userAgent || isBlocked ) {
+        // Save blocked user agent to blockedUserAgent.json
+        saveBlockedUserAgentWithCount( userAgent || 'Missing User-Agent' );
+
         return res.status( 403 ).json( {
             message: "Forbidden: Suspicious User-Agent"
         } );
-    };
+    }
 
     next();
 }
