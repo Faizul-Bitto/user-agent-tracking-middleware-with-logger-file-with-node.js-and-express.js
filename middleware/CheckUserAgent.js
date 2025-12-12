@@ -1,23 +1,32 @@
+const { saveUserAgent } = require( "../utils/logger" );
+
 exports.checkUserAgent = ( req, res, next ) => {
     const userAgent = req.headers[ 'user-agent' ];
+    const blockedPatterns = [
+        /curl/i,
+        /wget/i,
+        /python-requests/i,
+        /Go-http-client/i,
+        /Java/i,
+        /sqlmap/i,
+        /nmap/i,
+        /Nikto/i,
+        /HeadlessChrome/i,
+        /PhantomJS/i
+    ];
+
+    const isBlocked = blockedPatterns.some( ( pattern ) => pattern.test( userAgent ) );
 
     console.log( `The agent is ${ userAgent }` );
 
-    if ( !userAgent ) {
-        return res.status( 400 ).json( {
-            message: "Bad Request: Missing User-Agent header"
+    // Save to JSON file
+    saveUserAgent( userAgent );
+
+    if ( !userAgent || isBlocked ) {
+        return res.status( 403 ).json( {
+            message: "Forbidden: Suspicious User-Agent"
         } );
     };
-
-    /* 
-        blocking user-agents
-
-        if ( userAgent !== "Thunder Client (https://www.thunderclient.com)" ) {
-            return res.status( 400 ).json( {
-                message: "Bad Request: Missing User-Agent header"
-            } );
-        };
-    */
 
     next();
 }

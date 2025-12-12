@@ -1,5 +1,5 @@
 const { userSchema } = require( '../model/schema/User' );
-const users = require( '../data/users' );
+const users = require( '../users' );
 
 // User class
 class User {
